@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #6d0e14 0%, #8f1217 42%, #4c070a 100%);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: #fff8f0;
+  background: transparent;
+  font-family:
+    "Iowan Old Style",
+    "Palatino Linotype",
+    "Book Antiqua",
+    Palatino,
+    Georgia,
+    serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.bg-poster {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #6d0e14 0%, #8f1217 42%, #4c070a 100%);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
