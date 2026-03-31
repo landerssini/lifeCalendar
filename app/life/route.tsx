@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import type { CalendarViewMode } from "@/lib/date";
 import { buildLifeWallpaper } from "@/lib/wallpaper";
 
 export const runtime = "edge";
@@ -15,8 +16,22 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const birthdayParam = searchParams.get("birthday");
   const referenceDateParam = searchParams.get("date");
+  const modeParam = searchParams.get("mode");
+  const forcePointDayParam = searchParams.get("forcePointDay");
   const widthParam = Number.parseInt(searchParams.get("width") ?? "1290", 10);
   const heightParam = Number.parseInt(searchParams.get("height") ?? "2796", 10);
+  const dotPaddingLeftParam = Number.parseInt(
+    searchParams.get("dotPaddingLeft") ?? "",
+    10,
+  );
+  const dotAreaWidthParam = Number.parseInt(
+    searchParams.get("dotAreaWidth") ?? "",
+    10,
+  );
+  const dotAreaHeightParam = Number.parseInt(
+    searchParams.get("dotAreaHeight") ?? "",
+    10,
+  );
 
   if (!birthdayParam) {
     return new Response("Missing birthday", { status: 400 });
@@ -26,6 +41,9 @@ export async function GET(request: Request) {
   const referenceDate = referenceDateParam
     ? new Date(`${referenceDateParam}T00:00:00`)
     : new Date();
+  const mode: CalendarViewMode = modeParam === "real" ? "real" : "birthday";
+  const forcePointDay =
+    forcePointDayParam === "1" || forcePointDayParam === "true";
 
   if (Number.isNaN(birthDate.getTime()) || Number.isNaN(referenceDate.getTime())) {
     return new Response("Invalid date", { status: 400 });
@@ -33,7 +51,18 @@ export async function GET(request: Request) {
 
   const wallpaper = buildLifeWallpaper({
     birthDate,
+    dotAreaHeight: Number.isFinite(dotAreaHeightParam)
+      ? dotAreaHeightParam
+      : undefined,
+    dotAreaWidth: Number.isFinite(dotAreaWidthParam)
+      ? dotAreaWidthParam
+      : undefined,
+    dotPaddingLeft: Number.isFinite(dotPaddingLeftParam)
+      ? dotPaddingLeftParam
+      : undefined,
+    forcePointDay,
     height: heightParam,
+    mode,
     referenceDate,
     width: widthParam
   });

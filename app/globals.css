@@ -45,3 +45,31 @@ input {
 .text-balance {
   text-wrap: balance;
 }
+
+@keyframes life-calendar-page-flash {
+  0% {
+    opacity: 0;
+  }
+
+  14% {
+    opacity: 0.32;
+  }
+
+  32% {
+    opacity: 0;
+  }
+
+  54% {
+    opacity: 0.18;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.life-calendar-page-flash {
+  background: rgba(255, 248, 240, 0.92);
+  animation: life-calendar-page-flash 700ms ease-out forwards;
+  mix-blend-mode: screen;
+}

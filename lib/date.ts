@@ -2,10 +2,20 @@ const MS_PER_WEEK = 1000 * 60 * 60 * 24 * 7;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const TOTAL_WEEKS = 52 * 100;
 
+export type CalendarViewMode = "birthday" | "real";
+
 function startOfDay(date: Date) {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
+}
+
+function isSameDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
 }
 
 export function getWeeksLived(birthDate: Date, referenceDate: Date = new Date()): number {
@@ -114,6 +124,16 @@ export function getVisualWeeksLivedByBirthdayRows(
   return Math.min(TOTAL_WEEKS, completedYears * 52 + currentRowWeeks);
 }
 
+export function getDisplayedWeeksLived(
+  mode: CalendarViewMode,
+  birthDate: Date,
+  referenceDate: Date = new Date()
+) {
+  return mode === "real"
+    ? getWeeksLived(birthDate, referenceDate)
+    : getVisualWeeksLivedByBirthdayRows(birthDate, referenceDate);
+}
+
 export function getNextBirthdayRowMarkDate(
   birthDate: Date,
   referenceDate: Date = new Date()
@@ -144,7 +164,7 @@ export function formatLongDate(date: Date): string {
 export function getWeekDateLabel(birthDate: Date, weekIndex: number): string {
   const weekStart = new Date(birthDate);
   weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() + weekIndex * 7);
+  weekStart.setDate(weekStart.getDate() + (weekIndex + 1) * 7);
 
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
@@ -162,6 +182,39 @@ export function getBirthdayRowWeekDateLabel(birthDate: Date, weekIndex: number):
   rowStart.setDate(rowStart.getDate() + (weekInRow + 1) * 7);
 
   return formatLongDate(rowStart);
+}
+
+export function getDisplayedWeekDateLabel(
+  mode: CalendarViewMode,
+  birthDate: Date,
+  weekIndex: number
+) {
+  return mode === "real"
+    ? getWeekDateLabel(birthDate, weekIndex)
+    : getBirthdayRowWeekDateLabel(birthDate, weekIndex);
+}
+
+export function getDisplayedNextMarkDate(
+  mode: CalendarViewMode,
+  birthDate: Date,
+  referenceDate: Date = new Date()
+) {
+  return mode === "real"
+    ? getNextWeekMarkDate(birthDate, referenceDate)
+    : getNextBirthdayRowMarkDate(birthDate, referenceDate);
+}
+
+export function isDisplayedPointMarkDay(
+  mode: CalendarViewMode,
+  birthDate: Date,
+  referenceDate: Date = new Date()
+) {
+  const today = startOfDay(referenceDate);
+  const previousDay = new Date(today);
+  previousDay.setDate(previousDay.getDate() - 1);
+
+  const nextMarkFromPreviousDay = getDisplayedNextMarkDate(mode, birthDate, previousDay);
+  return isSameDay(startOfDay(nextMarkFromPreviousDay), today);
 }
 
 export function getHundredthBirthday(birthDate: Date): Date {

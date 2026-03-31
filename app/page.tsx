@@ -1,126 +1,162 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BirthDateForm } from "@/components/BirthDateForm";
-import { LifeCalendar } from "@/components/LifeCalendar";
-import { Login } from "@/components/Login";
-import { getSupabaseBrowserClient, hasSupabaseEnv } from "@/lib/supabase";
-
-const getBirthDateStorageKey = (userId: string) => `life-calendar:birthDate:${userId}`;
+import {
+  PROFILES_STORAGE_KEY,
+  createProfileId,
+  parseStoredProfiles,
+  sortProfiles,
+  type LifeProfile,
+} from "@/lib/profiles";
 
 export default function HomePage() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [birthDate, setBirthDate] = useState<string | null>(null);
-  const [birthDateLoading, setBirthDateLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-poster text-paperWhite">
+          <div className="space-y-4 text-center">
+            <p className="text-sm uppercase tracking-[0.35em] text-paperWhite/70">Life Calendar</p>
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border border-paperWhite/20 border-t-paperWhite" />
+          </div>
+        </main>
+      }
+    >
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editProfileId = searchParams.get("edit");
+  const [profiles, setProfiles] = useState<LifeProfile[]>([]);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!hasSupabaseEnv) {
-      setAuthLoading(false);
-      setBirthDateLoading(false);
-      return;
-    }
+    const storedProfiles = parseStoredProfiles(
+      window.localStorage.getItem(PROFILES_STORAGE_KEY),
+    );
 
-    const supabase = getSupabaseBrowserClient();
-
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        setAuthError(error.message);
-      }
-
-      setSession(data.session ?? null);
-      setAuthLoading(false);
-    });
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    setProfiles(storedProfiles);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!session?.user) {
-      setBirthDate(null);
-      setBirthDateLoading(false);
-      return;
-    }
+    setEditingProfileId(editProfileId);
+  }, [editProfileId]);
 
-    setBirthDateLoading(true);
-
-    const storageKey = getBirthDateStorageKey(session.user.id);
-    const storedBirthDate = window.localStorage.getItem(storageKey);
-
-    setBirthDate(storedBirthDate);
-    setBirthDateLoading(false);
-  }, [session?.user]);
-
-  const userLabel = useMemo(() => {
-    return session?.user.user_metadata.full_name ?? session?.user.email ?? "tu cuenta";
-  }, [session]);
-
-  const handleBirthDateSave = (nextBirthDate: string) => {
-    if (!session?.user) {
-      return;
-    }
-
-    const storageKey = getBirthDateStorageKey(session.user.id);
-    window.localStorage.setItem(storageKey, nextBirthDate);
-    setBirthDate(nextBirthDate);
+  const persistProfiles = (nextProfiles: LifeProfile[]) => {
+    const sortedProfiles = sortProfiles(nextProfiles);
+    setProfiles(sortedProfiles);
+    window.localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(sortedProfiles));
   };
 
-  const handleBirthDateReset = () => {
-    if (!session?.user) {
+  const editingProfile = useMemo(() => {
+    return profiles.find((profile) => profile.id === editingProfileId) ?? null;
+  }, [editingProfileId, profiles]);
+
+  const handleSaveProfile = ({
+    birthDate,
+    name,
+  }: {
+    birthDate: string;
+    name: string;
+  }) => {
+    const now = new Date().toISOString();
+
+    if (editingProfile) {
+      const nextProfiles = profiles.map((profile) =>
+        profile.id === editingProfile.id
+          ? {
+              ...profile,
+              birthDate,
+              name,
+              updatedAt: now,
+            }
+          : profile,
+      );
+
+      persistProfiles(nextProfiles);
+      setEditingProfileId(null);
+      router.push(`/calendar/${editingProfile.id}`);
       return;
     }
 
-    const storageKey = getBirthDateStorageKey(session.user.id);
-    window.localStorage.removeItem(storageKey);
-    setBirthDate(null);
+    const nextProfile: LifeProfile = {
+      birthDate,
+      createdAt: now,
+      id: createProfileId(),
+      name,
+      updatedAt: now,
+    };
+
+    persistProfiles([nextProfile, ...profiles]);
+    router.push(`/calendar/${nextProfile.id}`);
   };
 
-  if (authLoading || birthDateLoading) {
+  const handleDeleteProfile = (profileId: string) => {
+    const profile = profiles.find((candidate) => candidate.id === profileId);
+
+    if (!profile) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Se borrará el perfil "${profile.name}" de este navegador. Esta acción no se puede deshacer.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const nextProfiles = profiles.filter((candidate) => candidate.id !== profileId);
+    persistProfiles(nextProfiles);
+
+    if (editingProfileId === profileId) {
+      setEditingProfileId(null);
+      router.replace("/");
+    }
+  };
+
+  const handleStartEdit = (profileId: string) => {
+    setEditingProfileId(profileId);
+    router.push(`/?edit=${profileId}`);
+  };
+
+  const handleOpenProfile = (profileId: string) => {
+    router.push(`/calendar/${profileId}`);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProfileId(null);
+    router.replace("/");
+  };
+
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-poster text-paperWhite">
         <div className="space-y-4 text-center">
           <p className="text-sm uppercase tracking-[0.35em] text-paperWhite/70">Life Calendar</p>
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border border-paperWhite/20 border-t-paperWhite" />
-          <p className="text-lg text-paperWhite/85">Preparando tu calendario de vida…</p>
+          <p className="text-lg text-paperWhite/85">Preparando tus calendarios guardados…</p>
         </div>
       </main>
     );
   }
 
-  if (!session) {
-    return (
-      <Login
-        authError={authError}
-        supabaseConfigured={hasSupabaseEnv}
-      />
-    );
-  }
-
-  if (!birthDate) {
-    return (
-      <BirthDateForm
-        userLabel={userLabel}
-        onSave={handleBirthDateSave}
-      />
-    );
-  }
-
   return (
-    <LifeCalendar
-      birthDate={birthDate}
-      onResetBirthDate={handleBirthDateReset}
-      session={session}
+    <BirthDateForm
+      editingProfile={editingProfile}
+      onCancelEdit={handleCancelEdit}
+      onDeleteProfile={handleDeleteProfile}
+      onOpenProfile={handleOpenProfile}
+      onSave={handleSaveProfile}
+      onStartEdit={handleStartEdit}
+      profiles={profiles}
     />
   );
 }

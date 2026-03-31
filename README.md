@@ -1,13 +1,13 @@
 # Life Calendar
 
-Aplicación web en Next.js (App Router) + TypeScript para visualizar la vida del usuario como un poster de 100 años donde cada punto representa una semana.
+Aplicación web en Next.js (App Router) + TypeScript para visualizar la vida como un póster de 100 años donde cada punto representa una semana.
 
 ## Stack
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- Supabase Auth con Magic Link
+- localStorage para perfiles locales
 - Canvas API para dibujar los puntos sobre una imagen estática
 
 ## Puesta en marcha
@@ -18,52 +18,37 @@ Aplicación web en Next.js (App Router) + TypeScript para visualizar la vida del
 npm install
 ```
 
-2. Copia las variables de entorno:
-
-```bash
-cp .env.example .env.local
-```
-
-3. Configura en `.env.local`:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-4. En tu proyecto de Supabase activa `Email` dentro de `Authentication > Providers` y habilita `Magic Link`.
-
-5. Añade `http://localhost:3000` en:
-
-- `Authentication > URL Configuration > Site URL`
-- `Authentication > URL Configuration > Redirect URLs`
-
-6. Arranca el entorno local:
+2. Arranca el entorno local:
 
 ```bash
 npm run dev
 ```
 
+No hace falta configurar variables de entorno ni autenticación. Los perfiles se guardan en el navegador del dispositivo.
+
+## Flujo principal
+
+- La home permite crear perfiles con `nombre` + `fecha de nacimiento`
+- Puedes guardar varios perfiles en el mismo navegador
+- Cada perfil se puede abrir en su propia ruta `/calendar/[profileId]`, editar o eliminar
+- El calendario guarda su progreso visual y sus datos auxiliares en `localStorage`
+- La ruta `/life` genera el wallpaper listo para usar en iPhone
+- La ruta `/life-test` sirve para probar el render de la imagen
+
 ## Estructura
 
-- `app/page.tsx`: flujo principal de auth, loading, persistencia y render
-- `components/Login.tsx`: pantalla de acceso con magic link
-- `components/BirthDateForm.tsx`: formulario para guardar la fecha de nacimiento
-- `components/LifeCalendar.tsx`: imagen + canvas escalable + hover opcional
+- `app/page.tsx`: home con alta, edición y listado de perfiles locales
+- `app/calendar/[profileId]/page.tsx`: vista del calendario para un perfil concreto
+- `app/life/route.tsx`: imagen dinámica del wallpaper
+- `app/life-test/page.tsx`: página de test para la ruta `/life`
+- `components/BirthDateForm.tsx`: alta, edición y listado de perfiles guardados
+- `components/LifeCalendar.tsx`: póster principal, canvas, estadísticas, selector de modo y tutorial de iPhone
+- `lib/profiles.ts`: modelo y persistencia base de perfiles locales
 - `lib/date.ts`: cálculo de semanas vividas y fechas por semana
-- `lib/supabase.ts`: cliente de Supabase en navegador
+- `lib/wallpaper.tsx`: render del wallpaper
 
 ## Personalización del overlay
 
-La superposición del canvas usa coordenadas base y escalado proporcional:
-
-- `startX`
-- `startY`
-- `gapX`
-- `gapY`
-
-Si tu diseño final en `public/calendar.png` tiene otra retícula, ajusta esos valores en `components/LifeCalendar.tsx`.
+La superposición del canvas usa coordenadas base y escalado proporcional. Si tu diseño final en `public/calendar.png` tiene otra retícula, ajusta esos valores en `components/LifeCalendar.tsx`.
 
 El poster actual se carga desde `public/calendar.png`. Si cambias el nombre o la extensión, actualiza también el `src` de la imagen en `components/LifeCalendar.tsx`.
-# lifeCalendar
-# lifeCalendar
