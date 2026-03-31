@@ -18,6 +18,14 @@ function isSameDay(left: Date, right: Date) {
   );
 }
 
+function getUtcDayNumber(date: Date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
+}
+
+function getCalendarDayDifference(startDate: Date, endDate: Date) {
+  return getUtcDayNumber(endDate) - getUtcDayNumber(startDate);
+}
+
 export function getWeeksLived(birthDate: Date, referenceDate: Date = new Date()): number {
   const birthTime = birthDate.getTime();
   const now = referenceDate.getTime();
@@ -26,7 +34,10 @@ export function getWeeksLived(birthDate: Date, referenceDate: Date = new Date())
     return 0;
   }
 
-  return Math.min(TOTAL_WEEKS, Math.floor((now - birthTime) / MS_PER_WEEK));
+  return Math.min(
+    TOTAL_WEEKS,
+    Math.floor(getCalendarDayDifference(birthDate, referenceDate) / 7),
+  );
 }
 
 export function getDaysLived(birthDate: Date, referenceDate: Date = new Date()): number {
@@ -37,7 +48,7 @@ export function getDaysLived(birthDate: Date, referenceDate: Date = new Date()):
     return 0;
   }
 
-  return Math.floor((now - birthTime) / MS_PER_DAY);
+  return getCalendarDayDifference(birthDate, referenceDate);
 }
 
 export function getYearsLived(birthDate: Date, referenceDate: Date = new Date()): number {
@@ -111,7 +122,10 @@ export function getBirthdayRowWeeksLived(
   const currentBirthday = getCurrentBirthday(birthDate, referenceDate);
   const today = startOfDay(referenceDate);
 
-  return Math.min(52, Math.floor((today.getTime() - currentBirthday.getTime()) / MS_PER_WEEK));
+  return Math.min(
+    52,
+    Math.floor(getCalendarDayDifference(currentBirthday, today) / 7),
+  );
 }
 
 export function getVisualWeeksLivedByBirthdayRows(

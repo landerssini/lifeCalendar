@@ -154,6 +154,19 @@ function normalizeWallpaperDimension(value: string, fallback: number) {
   return parsed;
 }
 
+function getTodayAtStartOfDay() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function toDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function LifeCalendar({
   onBackToProfiles,
   onDeleteProfile,
@@ -180,17 +193,15 @@ export function LifeCalendar({
   const [customWallpaperWidth, setCustomWallpaperWidth] = useState("1290");
   const [customWallpaperHeight, setCustomWallpaperHeight] = useState("2796");
   const [simulatePointDay, setSimulatePointDay] = useState(false);
+  const [referenceDate, setReferenceDate] = useState<Date>(() =>
+    getTodayAtStartOfDay(),
+  );
   const calibration = DEFAULT_CALIBRATION;
   const birthDate = profile.birthDate;
   const birthDateObject = useMemo(
     () => new Date(`${birthDate}T00:00:00`),
     [birthDate],
   );
-  const referenceDate = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  }, []);
   const viewModeStorageKey = useMemo(
     () => `life-calendar:viewMode:${profile.id}`,
     [profile.id],
@@ -211,6 +222,35 @@ export function LifeCalendar({
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    const syncToday = () => {
+      setReferenceDate(getTodayAtStartOfDay());
+    };
+
+    const now = new Date();
+    const nextMidnight = new Date(now);
+    nextMidnight.setHours(24, 0, 1, 0);
+    const timeout = window.setTimeout(() => {
+      syncToday();
+    }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+
+    const handleFocus = () => syncToday();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncToday();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [referenceDate]);
   const realWeeksLived = useMemo(
     () => getWeeksLived(birthDateObject, referenceDate),
     [birthDateObject, referenceDate],
@@ -288,6 +328,7 @@ export function LifeCalendar({
 
     const url = new URL("/life", origin);
     url.searchParams.set("birthday", birthDate);
+    url.searchParams.set("date", toDateParam(referenceDate));
     url.searchParams.set("mode", viewMode);
     url.searchParams.set("width", String(wallpaperDimensions.width));
     url.searchParams.set("height", String(wallpaperDimensions.height));
@@ -300,6 +341,7 @@ export function LifeCalendar({
   }, [
     birthDate,
     origin,
+    referenceDate,
     simulatePointDay,
     viewMode,
     wallpaperDimensions.height,
